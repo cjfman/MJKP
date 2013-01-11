@@ -745,6 +745,8 @@ void MDBSerial::readerPoll()
   {
     return;
   }
+  //Serial.print("POLL: ");
+  //Serial.println(buffer[0], HEX);
   if (end == 1 && buffer[0] == 0x00)
   {
     reader_state = COMMAND;

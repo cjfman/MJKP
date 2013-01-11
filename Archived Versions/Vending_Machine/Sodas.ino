@@ -296,6 +296,7 @@ void SodaDispenser::idle()
       }
       Display.price(sodas[soda], prices[soda], 3);
     }
+    Serial.println("Preselection: " + String(soda));
     return;
   }
   if ((previous != efunds || this->timeOut(500)) && !card)
@@ -326,6 +327,7 @@ void SodaDispenser::idle()
   {
     return;
   }
+  Serial.println("Selection: " + String(soda));
   if (this->soldOut(soda))
   {
     Serial.print("Sold Out: ");
