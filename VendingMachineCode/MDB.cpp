@@ -5,8 +5,10 @@
 //
 //(c) Charles Franklin 2012
 
+#include <Arduino.h>
 #include "MDB.h"
-//#include "MPCM.h"
+#include "Log.h"
+
 
 namespace MDB
 {
@@ -23,7 +25,7 @@ namespace MDB
   
   uint8_t exact_change;
   uint8_t coins_only;
-  boolean money_hold;
+  bool money_hold;
   
   unsigned long dispense;
   
@@ -39,6 +41,7 @@ namespace MDB
   unsigned int coin_value[16];
   unsigned int tubes;
   uint8_t coin_count[16];
+  uint16_t changer_errors;
   
   // Changer Command Flags
   uint8_t changer_acceptance;
@@ -102,6 +105,9 @@ namespace MDB
     money_hold = false;
     reader_jammed = 0;
     stacker_full = 0;
+    
+    // Changer Variables
+    changer_errors = 0;
     
     // Reader Variables
     reader_acceptance = 0x11;
@@ -170,13 +176,13 @@ namespace MDB
     // mode0: reject all money
     // mode1: accept all money
 
-    if (!(reader_acceptance >> 1))
+    if (!(reader_acceptance & 0x02))
     {
-      reader_acceptance |= 0x01;
+      reader_acceptance |= 0x01;        // Set command bit
     }
-    if (!(changer_acceptance >> 1))
+    if (!(changer_acceptance & 0x02))
     {
-      changer_acceptance |= 0x01;
+      changer_acceptance |= 0x01;      // Set command bit
     }
   }
   
@@ -184,14 +190,13 @@ namespace MDB
   {
     // This function verifies that the reader
     // and changer are rejecting all money.
-    
-    if ((reader_acceptance >> 1))
+    if (reader_acceptance & 0x02)
     {
-      reader_acceptance &= 0xFE;
+      reader_acceptance &= 0xFE;    // Clear command bit
     }
-    if ((changer_acceptance >> 1))
+    if (changer_acceptance & 0x02)
     {
-      changer_acceptance &= 0xFE;
+      changer_acceptance &= 0xFE;  // Clear command bit
     }
   }
   
@@ -213,8 +218,8 @@ namespace MDB
         changerDispense();
         break;
       case COMMAND:
-        //changerCommand();
-        changer_state = POLL;
+        changerCommand();
+        //changer_state = POLL;
         break;
       case RESET:
         changerReset();
@@ -231,6 +236,9 @@ namespace MDB
       case COIN_TYPE:
         changerCoinType();
         break;
+      default:
+        command(0x0B);  // POLL command
+        changer_state = POLL;
     }
   }
   
@@ -261,12 +269,15 @@ namespace MDB
       // outside of the scope of this function
       return;
     }
+    /*
+    // This code causes dimes to cause crashes
     if(!(error & 0x01) && !changer_enable)
     {
       // An error has been cleared. Reset Changer
       resetChanger();
       return;
     }
+    */
     // If an action has been taken involving a coin the first byte
     // Indicates the action and the coin type
     // Look at MDB 4.0 spec for specifics on coding scheme
@@ -276,7 +287,7 @@ namespace MDB
       uint8_t action = (buffer[0] >> 4) & 0x03; // Indicates coin routing
       uint8_t coin = buffer[0] & 0x0F; // Type of coin
       coin_count[coin] = buffer[1]; // The number of coins in the tube for this type
-      Serial.print("Coin: " + String(coin) + ", " + String(coin_value[coin]));
+      Log::print("Coin: " + String(coin) + ", " + String(coin_value[coin]));
       if(action != 0x03)
       {
         // All actions other than 0x03 indicate that the coin was accepted and good
@@ -300,29 +311,34 @@ namespace MDB
     if (changer_acceptance == 0x01)
     {
       Log::print("Set Acceptance: All Coins");
-      reader_acceptance = 0x03;
-      write_buffer[0] = bills_used >> 8;
-      write_buffer[1] = bills_used & 0xFF;
-      write_buffer[2] = write_buffer[0];
-      write_buffer[3] = write_buffer[1];
-      command(0x34, 4);
-      reader_state = BILL_TYPE;
-      return;
+      changer_acceptance = 0x03;
+      write_buffer[0] = 0;      // Types 15-8 disabled
+      write_buffer[1] = 0x0F;   // Types 0-3 enabled
+      write_buffer[2] = 0xFF;   // All types dispense enable
+      write_buffer[3] = 0xFF;
+      command(0x0C, 4); //Coin Type
+      changer_state = COIN_TYPE;
     }
     
     // Set acceptance to reject all bills
     // Only if not already set
-    if (changer_acceptance == 0x02)
+    else if (changer_acceptance == 0x02)
     {
       Log::print("Set Acceptance: No Coins");
-      reader_acceptance = 0x00;
-      write_buffer[0] = 0;
-      write_buffer[1] = 0;
-      write_buffer[2] = write_buffer[0];
-      write_buffer[3] = write_buffer[1];
-      command(0x34, 4);
-      reader_state = BILL_TYPE;
-      return;
+      changer_acceptance = 0x00;      
+      write_buffer[0] = 0;      // Types 15-8 disabled
+      write_buffer[1] = 0;      // Types 7-0  disabled
+      write_buffer[2] = 0xFF;   // All types dispense enable
+      write_buffer[3] = 0xFF;
+      command(0x0C, 4); //Coin Type
+      changer_acceptance = 0x02;
+      changer_state = COIN_TYPE;
+    }
+    
+    // Nothing to do
+    else {
+      changer_state = NONE;
+      state = READER;
     }
   }
 
@@ -432,7 +448,6 @@ namespace MDB
   void changerReset(void)
   {
     //Must wait 800 ms before attempting to initialize the changer after reset
-    Log::print("Initiating Changer");
     static unsigned int time = 0; 
     if (time == 0)
     {
@@ -444,6 +459,7 @@ namespace MDB
     {
       return;
     }
+    Log::print("Initiating Changer");
     command(0x0B); //POLL
     changer_state = WAIT;
   }
@@ -461,7 +477,7 @@ namespace MDB
       case 0: //Retransmit requested
         return;
     }
-    if(!changerErrorCheck(end) > 1)
+    if(!(changerErrorCheck(end) & 0x02))
     {
       //If changer did not reset
       resetChanger();
@@ -501,6 +517,7 @@ namespace MDB
     }
     command(0x0A); //Tube Status
     changer_state = TUBE_STATUS;
+    Log::print("Changer Initialized");
   }
   
   void changerTubeStatus(void)
@@ -585,45 +602,59 @@ namespace MDB
     // continue as normal. Sets second bit if calling
     // function should return without other actions
     // The third bit is set when the changer is busy
-    int result, i;
-    for(i = 0; i < end; i++)
+    int result = 0;
+    for(int i = 0; i < end; i++)
     {
+      //*
       if(buffer[i] == 0x06) //Acceptor Unplugged
       {
         Log::print("Acceptor Unplugged");
         changer_enable = 0;
-        result = result & 1;
+        result |= 1;
+        changer_errors++;
       }
-      if(buffer[i] == 0x07) //Tube Jam
+      else if(buffer[i] == 0x07) //Tube Jam
       {
         // Can accept coins but can't dispense
         Log::print("Tube Jam");
         exact_change = 1;
         changer_jam = 1;
-        result = result & 1;
+        result |= 1;
+        changer_errors++;
       }
-      if(buffer[i] == 0x0C) //Coin Jam
+      else if(buffer[i] == 0x0C) //Coin Jam
       {
         // Can still dispense, but can't accept coins
         Log::print("Coin Jam");
         changer_enable = 0;
 //        exact_change = 1;
 //        changer_jam = 1;
-        result = result & 1;
-        result = result & (1 << 1);
+        result |= 1;
+        //result |= (1 << 1);
         changer_state = DISPENSE;
+        changer_errors++;
       }
-      if(buffer[i] == 0x0B) //Just Reset
+      // */
+      else if(buffer[i] == 0x0B) //Just Reset
       {
+        Log::print("Changer: Just Reset");
         changer_state = SETUP;
         command(0x09); //SETUP
-        result = result & (1 << 1);
+        result |= (1 << 1);
       }
-      if(buffer[i] == 0x02 || buffer[i] == 0x0A) //Busy
+      else if(buffer[i] == 0x02 || buffer[i] == 0x0A) //Busy
       {
         //changer_state = COMMAND;
-        result = result & (1 << 2);
+        result |= (1 << 2);
       }
+    }
+    static unsigned long ctime = millis();
+    static unsigned long last_error = ctime;
+    if (changer_errors > 100) {
+      resetChanger();
+    }
+    if (last_error + 3000 >= ctime) {
+      changer_errors = 0;
     }
     return result;
   }  
@@ -632,8 +663,10 @@ namespace MDB
   {
     changer_enable = 1;
     changer_jam = 0;
+    changer_errors = 0;
     command(0x08);
     changer_state = RESET;
+    Log::print("Changer Reset");
     //delay(200);
     //MPCMSerial3.flush();
   }
@@ -647,6 +680,11 @@ namespace MDB
     // Main switching funciton for the Bill Reader
     // Calls proper funciton based on state
     // Main loop is POLL >> COMMAND
+    if (!reader_enable) {
+      state = CHANGER;
+      return;
+    }
+    
     switch(reader_state)
     {
       case POLL:
@@ -669,13 +707,16 @@ namespace MDB
         break;
       case BILL_TYPE:
         readerBill();
+      default:
+        command(0x33); // POLL command
+        reader_state = POLL;
         break;
     }
   }
   
   void readerPoll()
   {
-    uint8_t end = read();
+    int8_t end = read();
     static unsigned long last_stack = 0;
     unsigned long current = millis();
     
@@ -689,7 +730,7 @@ namespace MDB
     }
     
     // Check for errors
-    if((readerErrorCheck(end) > 1) & 0x01)
+    if(readerErrorCheck(end) & 0x01)
     {
       return;
     }
@@ -701,7 +742,6 @@ namespace MDB
       state = CHANGER;
       return;
     }
-    
     // Look through read buffer for bill accepted byte
     int accepted = -1;
     int i;
@@ -770,12 +810,11 @@ namespace MDB
         Log::print("Invalid Stack Escrow Request");
       }
       stack_bill = 0;
-      return;
     }
     
     // Return bill command
     // Only valid if there is a bill in escrow
-    if (return_bill & 0x01 && (return_bill & 0x02))
+    else if (return_bill & 0x01 && (return_bill & 0x02))
     {
       if (escrow)
       {
@@ -790,12 +829,11 @@ namespace MDB
         Log::print("Invalid Return Escrow Request");
       }
       return_bill = 0;
-      return;
     }
     
     // Set acceptance to all bills
     // Only if not already set
-    if (reader_acceptance == 0x01)
+    else if (reader_acceptance == 0x01)
     {
       Log::print("Set Acceptance: All Bills");
       reader_acceptance = 0x03;
@@ -805,12 +843,11 @@ namespace MDB
       write_buffer[3] = write_buffer[1];
       command(0x34, 4);
       reader_state = BILL_TYPE;
-      return;
     }
     
     // Set acceptance to reject all bills
     // Only if not already set
-    if (reader_acceptance == 0x02)
+    else if (reader_acceptance == 0x02)
     {
       Log::print("Set Acceptance: No Bills");
       reader_acceptance = 0x00;
@@ -820,7 +857,12 @@ namespace MDB
       write_buffer[3] = write_buffer[1];
       command(0x34, 4);
       reader_state = BILL_TYPE;
-      return;
+    }
+    
+    else {
+      //command(0x33); // POLL command
+      reader_state = NONE;
+      state = CHANGER;
     }
   }
   
@@ -844,8 +886,9 @@ namespace MDB
       case 0: //Retransmit requested
         return;
     }
-    if(!(readerErrorCheck(end) > 1) & 0x01)
+    if(!(readerErrorCheck(end) & 0x02))
     {
+      if (!reader_enable) return;
       //If changer did not reset
       resetReader();
       return;
@@ -889,6 +932,7 @@ namespace MDB
       }
     }
     command(0x36); //Stacker Status
+    Log::print("Reader Initialized");
     reader_state = STACKER;
   }
   
@@ -916,6 +960,7 @@ namespace MDB
     write_buffer[2] = write_buffer[0];
     write_buffer[3] = write_buffer[1];
     command(0x34, 4); //Bill Type
+    changer_acceptance = 0x02;
     reader_state = BILL_TYPE;
   }
   
@@ -943,51 +988,54 @@ namespace MDB
     // Sets the first bit if calling fuction can
     // continue as normal. Sets second bit if calling
     // function should return without other actions.
-    int result, i;
+    int result = 0;
+    int i = 0;
     for(i = 0; i < end; i++)
     {
       if(buffer[i] == 0x01) //Defective Motor
       {
-        Log::print("Defective Motor");
-        reader_enable = 0;
-        coins_only = 1;
-        result = result & 1;
+        Log::print("Bill Feeder Error: Defective Motor");
+        //reader_enable = 0;
+        //coins_only = 1;
+        result |= 1;
       }
       if(buffer[i] == 0x02) //Defective Sensor
       {
-        Log::print("Defective Sensor");
-        reader_enable = 0;
-        coins_only = 1;
-        result = result & 1;
+        Log::print("Bill Feeder Error: Defective Sensor");
+        //reader_enable = 0;
+        //coins_only = 1;
+        result |= 1;
       }
       if(buffer[i] == 0x03) //Busy
       {
         reader_state = COMMAND;
-        result = result & (1 << 1);
+        result |= 1 << 2;
       }
       if(buffer[i] == 0x05) //Jam
       {
         reader_jammed = 1;
         reader_state = COMMAND;
-        result = result & 1;
+        result |= 1;
       }
       if(buffer[i] == 0x06) //Just Reset
       {
         command(0x31); //SETUP
         reader_state = SETUP;
-        result = result & (1 << 1);
+        result |= 1 << 1;
       }
       /*if (buffer[i] == 0x0A) //Invalid Escrow Request
       {
         escrow = 0;
       }*/
-      if(buffer[i] == 0x09) //Validator Disabled
+      /*
+      else if(buffer[i] == 0x09) //Validator Disabled
       {
-        Log::print("Validator Disabled");
+        Log::print("Bill Feeder Error: Validator Disabled");
         reader_enable = 0;
         coins_only = 1;
         result = result & 1;
       }
+      */
     }
     return result;
   }  

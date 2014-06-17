@@ -101,12 +101,14 @@ namespace LCD
     {
       line1 = alt1;
       line2 = alt2;
-      return;
+    }
+    else {
+      line1 = "Michael Jackson The King of Pop";
+      line2 = "Tap card to make purchase or add credit";
     }
     updated = 0;
+    autoidle = 0;
     remain = 1;
-    line1 = "Michael Jackson The King of Pop";
-    line2 = "Tap card to make purchase or add credit";
     restpoint = 17;
     wait = 3;
   }
@@ -290,6 +292,7 @@ namespace LCD
     unsigned int reprint = 0;
     if(!updated)
     {
+      autoidle *= 1000;
       if (old_line1 == line1 && old_line2 == line2)
       {
         updated = 1;
@@ -308,7 +311,6 @@ namespace LCD
       time1 = ctime;
       time2 = ctime;
       wait = wait * 1000;
-      autoidle = autoidle*1000;
       len1 = line1.length();
       len2 = line2.length();
       subline1 = line1.substring(0, 16);
@@ -317,6 +319,7 @@ namespace LCD
     }
     if ((ctime >= time + autoidle) && autoidle > 0)
     {
+      autoidle = 0;
       idle();
     }
     if (ctime >= time1 + 300)

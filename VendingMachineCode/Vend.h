@@ -13,10 +13,8 @@
 #ifndef VEND_h
 #define VEND_H
 
-#include "MDB.h"
-#include "LCD.h"
-#include "Log.h"
 #include <inttypes.h>
+#include <Arduino.h>
 
 namespace Vend
 {
@@ -28,7 +26,7 @@ namespace Vend
   
   // Variables
   extern uint8_t state;
-  extern boolean enabled;
+  extern bool enabled;
   extern String sodas[10];
   extern unsigned long prices[10];
   extern uint8_t soda_enable[10];

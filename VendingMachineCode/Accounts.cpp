@@ -4,6 +4,8 @@
 //(c) Charles Franklin 2012
 
 #include "Accounts.h"
+#include "LCD.h"
+#include "Log.h"
 
 // Variables
 boolean Accounts::cash_only;
@@ -30,8 +32,10 @@ Accounts::Accounts(unsigned long ID)
   String temp_path = String(account_files_path);
   temp_path += longToHexString(ID) + ".txt";
   temp_path.toCharArray(path, 64);
+  //Log::print("Opening path: " + temp_path);
   if(!loadAccount() || isInList(account_ID))
   {
+    Log::print("Account Read Failure");
     clearAccount();
   }
   else
@@ -68,16 +72,30 @@ void Accounts::setup()
   // This Function sets up the SD card and account handling 
   // SD
   int tries;
-  for(tries = 0; !SD.begin(4) && tries < 10; tries++);
+  pinMode(4, OUTPUT);
+  pinMode(53, OUTPUT);
+  digitalWrite(53, HIGH);
+  Log::print("Opening SD Card");
+  for(tries = 0; !SD.begin(4) && tries < 10; tries++) {
+    Log::print("Attempt " + String(tries + 1));
+    delay(1000);
+  }
   if(tries == 10)
   {
     //If SD card fails to initiate 10 times, enter cash only mode
-    cash_only = true;
+    Log::print("SD Card Failure");
+    LCD::alt("Out Of Order", "SD Card Failure");
+    return;
   }
   else
   {
     cash_only = false;
   }
+#ifndef CASH_ONLY
+  cash_only = false;
+#else
+  cash_only = true;
+#endif  // CASH_ONLY
   
   // Default File Paths
   setPath("/Accounts.txt", "/Info.txt", "/Accounts/");
@@ -90,8 +108,10 @@ void Accounts::setup()
   {
     open_accounts[i] = -1;
   }
-  if (cash_only)
+  if (cash_only) {
+    Serial.println("Cash Only");
     LCD::alt("Michael Jackson The King of Pop", "Cash Only");
+  }
 }
 
 void Accounts::setPath(char* new_accounts, char* new_info, char* new_files)
@@ -107,6 +127,8 @@ void Accounts::setPath(char* new_accounts, char* new_info, char* new_files)
 void Accounts::loadInfo()
 {
   // This function parses the file at info_path for general information and settings
+  
+  if (cash_only) return;
   
   File file = SD.open(info_path);
   if (!file)
@@ -458,8 +480,9 @@ boolean Accounts::loadAccount()
   int i;
   for (i = 0; file.peek() != '\n' && i < 32; i++)
   {
-    account_name[i] += char(file.read());
+    account_name[i] = file.read();
   }
+  account_name[i] = '\0';  // Null terminate string
   
   // Load Account ID
   while (file.read() != ':');

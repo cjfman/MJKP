@@ -7,8 +7,9 @@
 
 #include <SD.h>
 #include <inttypes.h>
-#include "LCD.h"
-#include "Log.h"
+
+
+#define CASH_ONLY
 
 class Accounts
 {

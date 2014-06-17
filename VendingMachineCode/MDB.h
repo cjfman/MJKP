@@ -24,7 +24,6 @@
 #define MDB_h
 
 #include <inttypes.h>
-#include "Log.h"
 
 namespace MDB
 {
@@ -60,7 +59,7 @@ namespace MDB
   
   extern uint8_t exact_change;
   extern uint8_t coins_only;
-  extern boolean money_hold;
+  extern bool money_hold;
   
   extern unsigned long dispense;
   
@@ -76,9 +75,10 @@ namespace MDB
   extern unsigned int coin_value[16];
   extern unsigned int tubes;
   extern uint8_t coin_count[16];
+  extern uint16_t changer_errors;
   
   // Changer Command Flags
-  extern uint8_t changer_acceptance;
+  extern uint8_t changer_acceptance;   // Bitmap (state | command) where set is accept all
   
   // Reader variables
   extern uint8_t reader_jammed;
@@ -93,9 +93,9 @@ namespace MDB
   extern unsigned long bill_value[16];
   extern unsigned int bill_count;
   extern uint8_t stacker_full;
-  extern uint8_t reader_acceptance;
   
   // Reader command flags
+  extern uint8_t reader_acceptance;  // Bitmap (state | command) where set is accept all
   extern uint8_t stack_bill;
   extern uint8_t return_bill;
   
@@ -123,6 +123,7 @@ namespace MDB
   // Changer Functions
   void changer(void);
   void changerPoll(void);
+  void changerCommand(void);
   void changerDispense(void);
   void changerReset(void);
   void changerWait(void);

@@ -5,7 +5,7 @@
 #ifndef LCD_h
 #define LCD_h
 
-#include <WString.h>
+#include <Arduino.h>
 #include <inttypes.h>
 
 namespace LCD 

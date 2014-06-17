@@ -6,6 +6,10 @@
 
 #include "RFID.h"
 #include "Vend.h"
+#include "Accounts.h"
+#include "MDB.h"
+#include "LCD.h"
+#include "Log.h"
 
 namespace RFID
 {

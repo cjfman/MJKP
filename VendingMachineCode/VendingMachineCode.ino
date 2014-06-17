@@ -2,7 +2,7 @@
 //Vending Machine code
 //Developed by Charles Franklin for RFID Vending Machine
 //
-//(c) Charles Franklin 2012
+//(c) Charles Franklin 2014
 
 // This Program uses a cooperative processesing kernal scheem
 // A process is called by calling the run function of the process
@@ -47,24 +47,40 @@ void setup()
   LCD::run();
   
   // Accounts
+  Serial.println("Begin Accounts Setup");
+  LCD::print("Settign up...", "...Accounts");
+  LCD::run();
   Accounts::setup();
+  Serial.println("Accounts Setup");
  
   // Log
-  Log::start("log.txt");
+  //Log::start("log.txt");
   
   // MDB
+  LCD::print("Settign up...", "...MDB");
+  LCD::run();
   MDB::reset();
   
   // Vend
   Vend::setup();
   
   // RFID
+  LCD::print("Settign up...", "...RFID");
+  LCD::run();
   RFID::setup();
   attachInterrupt(0, RFID::dataLow, FALLING);
   attachInterrupt(1, RFID::dataHigh, FALLING);
   
+  LCD::print("Setup done");
+  LCD::run();
+  
   LCD::idle();
   Log::print("Setup Complete");
+  
+  //Coin Return
+  pinMode(21, INPUT);
+  digitalWrite(21, HIGH);
+  attachInterrupt(2, coinReturn, FALLING);
 }
 
 void loop()
@@ -90,5 +106,6 @@ void coinReturn()
     time = current;
     MDB::coinReturn();
     Log::print("Coin Return");
+    //LCD::print("Returning Money", 3);
   }
 }

@@ -6,11 +6,14 @@
 
 #include "Vend.h"
 #include "Accounts.h"
+#include "MDB.h"
+#include "LCD.h"
+#include "Log.h"
 
 namespace Vend
 {
   uint8_t state; 
-  boolean enabled; 
+  bool enabled; 
   String sodas[10];
   unsigned long prices[10];
   uint8_t soda_enable[10];
@@ -64,9 +67,16 @@ namespace Vend
     for (i = 0; i < 10; i++)
     {
       Accounts soda = Accounts(i);
-      prices[i] = soda.getBalance();
-      sodas[i] = soda.getName();
-      soda_enable[i] = 1;
+      if (soda.getName() == "") {
+        prices[i] = 0;
+        sodas[i] = "Soda " + String(i + 1);
+        soda_enable[i] = 0;
+      }
+      else {
+        prices[i] = soda.getBalance();
+        sodas[i] = soda.getName();
+        soda_enable[i] = 1;
+      }
       // Hunt for the soda with the greatest price
       if (prices[i] > max_price)
       {
@@ -76,7 +86,7 @@ namespace Vend
       // Test motors. Reset them to their default position
       // If a motor fails to reset, disable that soda
       Log::print("...motor: " + String(i));
-      resetMotor(i);
+      //resetMotor(i);
     }
   }
   
@@ -137,7 +147,7 @@ namespace Vend
   {
     // This Function represents the idle state
     // This state runs when the vending machine is waiting for input
-    LCD::idle();
+    //LCD::idle();
     
     unsigned long funds = MDB::bill_funds + MDB::coin_funds;
     boolean escrow = MDB::escrow;
@@ -189,6 +199,15 @@ namespace Vend
       MDB::stack();
     }
     
+    // Check to see if no money
+    if (funds + escrow == 0)
+    {
+      MDB::all();
+      state = IDLE;
+      LCD::idle();
+      return;
+    }
+    
     uint8_t soda = buttonPush();
     // No button was pushed
     if (soda == 10)
@@ -203,14 +222,6 @@ namespace Vend
       return;
     }
     
-    // Check to see if no money
-    if (funds + escrow == 0)
-    {
-      MDB::all();
-      state = IDLE;
-      return;
-    }
-    
     // Check to see if enough money
     if (funds + escrow < prices[soda])
     {
@@ -219,6 +230,13 @@ namespace Vend
     }
     
     MDB::money_hold = true;
+    
+    // Check again because of coin return
+    if (funds + escrow < prices[soda])
+    {
+      LCD::price(sodas[soda], prices[soda], 3);
+      return;
+    }
     
     // If money in escrow, state >> VERIFY
     // set queue and stack bill
@@ -233,8 +251,10 @@ namespace Vend
     
     Log::print("Return Coins");
     MDB::giveChange(funds - prices[soda]); // Calculate Change
-    state = IDLE;
     vend(soda);
+    MDB::money_hold = false;
+    state = IDLE;
+    LCD::idle();
   }
   
   void verify()
@@ -272,9 +292,11 @@ namespace Vend
     
     Log::print("Verified\nReturn Coins");
     MDB::giveChange(funds - prices[queue]); // Calculate Change
-    state = IDLE;
     vend(queue);
+    MDB::money_hold = false;
     queue = 10;
+    state = IDLE;
+    LCD::idle();
   }
   
   /************************************************************************************
@@ -284,9 +306,7 @@ namespace Vend
   boolean vend(uint8_t soda)
   {
     // This function takes a soda and controls the hardware to vend the soda
-    
-    MDB::money_hold = false;
-    
+        
     LCD::print("VEND");
     LCD::run();
     
@@ -415,8 +435,7 @@ namespace Vend
       latch(1);
       if (!digitalRead(soda + 28))
       {
-        Serial.print("Sold Out: ");
-        Serial.println(soda, DEC);
+        Log::print("Sold Out: " + String(soda));
         return 1;
       }
     }
@@ -427,8 +446,7 @@ namespace Vend
       latch(2);
       if (!digitalRead(soda + 20))
       {
-        Serial.print("Sold Out: ");
-        Serial.println(soda, DEC);
+        Log::print("Sold Out: " + String(soda));
         return 1;
       }
     }
