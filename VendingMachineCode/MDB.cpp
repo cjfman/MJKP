@@ -109,8 +109,6 @@ namespace MDB
     // Changer Variables
     changer_errors = 0;
     
-    // Reader Variables
-    reader_acceptance = 0x11;
     
     // Reader Command Flags
     stack_bill = 0;
@@ -331,7 +329,6 @@ namespace MDB
       write_buffer[2] = 0xFF;   // All types dispense enable
       write_buffer[3] = 0xFF;
       command(0x0C, 4); //Coin Type
-      changer_acceptance = 0x02;
       changer_state = COIN_TYPE;
     }
     
@@ -562,6 +559,7 @@ namespace MDB
     write_buffer[2] = 0xFF; // The second two bytes indicate which coins can be manually dispensed
     write_buffer[3] = 0xFF; // This data is specific to a changer that accepts 4 types of coins
     command(0x0C, 4); //Coin Type
+    changer_acceptance = 0x03;
     changer_state = COIN_TYPE;
   }
   
@@ -960,7 +958,7 @@ namespace MDB
     write_buffer[2] = write_buffer[0];
     write_buffer[3] = write_buffer[1];
     command(0x34, 4); //Bill Type
-    changer_acceptance = 0x02;
+    changer_acceptance = 0x03;
     reader_state = BILL_TYPE;
   }
   
