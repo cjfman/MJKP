@@ -154,10 +154,6 @@ namespace MDB
   
   void coinReturn()
   {
-    if (money_hold)
-    {
-      return;
-    }
     dispense = dispense + coin_funds + bill_funds;
     coin_funds = 0;
     bill_funds = 0;
@@ -791,14 +787,35 @@ namespace MDB
     // Only one flag is handled at a time
     // All flags are cleared by and only this function
     
+    // Return bill command
+    // Only valid if there is a bill in escrow
+    if (return_bill) // & 0x01 && (return_bill & 0x02))
+    {
+      if (escrow)
+      {
+        Log::print("Sending Return Bill Command");
+        //return_bill |= 0x02;
+        write_buffer[0] = 0x00; // Return
+        command(0x35, 1);       // Bill command
+        reader_state = POLL;
+      }
+      else
+      {
+        Log::print("Invalid Return Escrow Request");
+      }
+      return_bill = 0;
+      money_hold = false;
+    }
+    
+    
     // Stack bill command
     // Only valid if there is a bill in escrow
-    if (stack_bill & 0x01 && !(stack_bill & 0x02))
+    else if (stack_bill) // & 0x01 && !(stack_bill & 0x02))
     {
       if (escrow)
       {
         Log::print("Sending Stack Bill Command: " + String(escrow));
-        stack_bill |= 0x02;
+        //stack_bill |= 0x02;
         write_buffer[0] = 0x01; // Stack
         command(0x35, 1); // Bill command
         reader_state = POLL;
@@ -808,25 +825,6 @@ namespace MDB
         Log::print("Invalid Stack Escrow Request");
       }
       stack_bill = 0;
-    }
-    
-    // Return bill command
-    // Only valid if there is a bill in escrow
-    else if (return_bill & 0x01 && (return_bill & 0x02))
-    {
-      if (escrow)
-      {
-        Log::print("Sending Return Bill Command");
-        return_bill |= 0x02;
-        write_buffer[0] = 0x00; // Return
-        command(0x35, 1); // Bill command
-        reader_state = POLL;
-      }
-      else
-      {
-        Log::print("Invalid Return Escrow Request");
-      }
-      return_bill = 0;
     }
     
     // Set acceptance to all bills

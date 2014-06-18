@@ -101,8 +101,9 @@ void coinReturn()
 {
   static unsigned long time = 0;
   unsigned long current = millis();
-  if (time + 2000 < current)
+  if (time + 2000 < current && !MDB::money_hold)
   {
+    MDB::money_hold = true;
     time = current;
     MDB::coinReturn();
     Log::print("Coin Return");
