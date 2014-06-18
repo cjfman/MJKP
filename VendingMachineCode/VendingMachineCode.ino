@@ -12,9 +12,9 @@
 
 
 // Pin Usage
-// [0, 1, 4, 10, 11, 12, 13, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+// [0, 1, 4, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
 // [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 45] 
-// [A8, A9, A10, A11, A12, A13, A14] 
+// [A5, A8, A9, A10, A11, A12, A13, A14] 
 //
 // LCD [A8, A9, A10, A11, A12, A13, A14]
 // SD and Ethernet [4, 10, 11, 12, 13]
@@ -22,6 +22,7 @@
 // MPCMSerial3 [16, 17]
 // Relay array [34, 35, 36, 37, 38, 39, 40, 41, 43, 45]
 // Input Latch [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
+// Buttons [21, A5]
 
 #include <inttypes.h>
 #include <LiquidCrystal.h>
@@ -62,6 +63,8 @@ void setup()
   MDB::reset();
   
   // Vend
+  LCD::print("Settign up...", "...Hardware");
+  LCD::run();
   Vend::setup();
   
   // RFID

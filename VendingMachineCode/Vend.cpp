@@ -36,6 +36,10 @@ namespace Vend
     uint8_t queue = 10;
     enabled = true;
     
+    // Setup Free switch
+    pinMode(A5, INPUT);
+    digitalWrite(A5, HIGH);
+    
     // Setup the Digital I/O pins
     int i;
     for (i = 22; i < 26; i++)
@@ -86,7 +90,7 @@ namespace Vend
       // Test motors. Reset them to their default position
       // If a motor fails to reset, disable that soda
       Log::print("...motor: " + String(i));
-      //resetMotor(i);
+      resetMotor(i);
     }
   }
   
@@ -163,6 +167,11 @@ namespace Vend
     if (soda != 10)
     {
       // A button was pushed
+      if (!digitalRead(A5)) 
+      {
+        vend(soda);
+        LCD::idle();
+      }
       if (soldOut(soda))
       {
         LCD::print(sodas[soda], "Sold Out", 3);
@@ -336,7 +345,7 @@ namespace Vend
       //latch(3);
       m = soda * 2 + 27;
       l = 3;
-      r = queue + 22;
+      r = soda + 22;
     }
     
     digitalWrite(m, HIGH); // Start the motor
@@ -345,9 +354,11 @@ namespace Vend
     // Keep motor on at least until it starts turning
     while (!digitalRead(r))
     {
-      if (timeout(3000))
+      if (timeout(4000))
       {
         vendFailue(soda);
+        digitalWrite(m, LOW);
+        return false;
       }
       
       // Latch and try again
@@ -364,6 +375,10 @@ namespace Vend
       temp = digitalRead(r);
       digitalWrite(m, temp);  // Set motor to it's next state now
       done = !temp;
+      if (timeout(7000))
+      {
+        break;
+      }
     }
     timeout(0);
     
@@ -381,7 +396,9 @@ namespace Vend
     Log::print("Motor Jam: " + String(soda));
     LCD::print("Vend Failure", 7);
     soda_enable[soda] = 0;
-    MDB::giveChange(prices[soda]);
+    if (!digitalRead(A5)) {
+      MDB::giveChange(prices[soda]);
+    }
   }
   
   /************************************************************************************
