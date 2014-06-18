@@ -259,8 +259,12 @@ namespace Vend
     }
     
     Log::print("Return Coins");
-    MDB::giveChange(funds - prices[soda]); // Calculate Change
-    vend(soda);
+    if (!vend(soda)) {
+      MDB::giveChange(prices[soda]);        // Refund Money
+    }
+    else {
+      MDB::giveChange(funds - prices[soda]); // Calculate Change
+    }
     MDB::money_hold = false;
     state = IDLE;
     LCD::idle();
@@ -300,8 +304,12 @@ namespace Vend
     }
     
     Log::print("Verified\nReturn Coins");
-    MDB::giveChange(funds - prices[queue]); // Calculate Change
-    vend(queue);
+    if (!vend(soda)) {
+      MDB::giveChange(prices[soda]);        // Refund Money
+    }
+    else {
+      MDB::giveChange(funds - prices[soda]); // Calculate Change
+    }
     MDB::money_hold = false;
     queue = 10;
     state = IDLE;
@@ -377,6 +385,7 @@ namespace Vend
       done = !temp;
       if (timeout(7000))
       {
+        digitalWrite(m, LOW);  // Turn off motor
         break;
       }
     }
@@ -396,9 +405,11 @@ namespace Vend
     Log::print("Motor Jam: " + String(soda));
     LCD::print("Vend Failure", 7);
     soda_enable[soda] = 0;
+    /*
     if (!digitalRead(A5)) {
       MDB::giveChange(prices[soda]);
     }
+    //*/
   }
   
   /************************************************************************************
