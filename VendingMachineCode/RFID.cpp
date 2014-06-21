@@ -196,7 +196,7 @@ namespace RFID
     timeout(0);
     
     // If the escrow has been stacked, the value of funds will be enough to make the purchase
-    if (funds < Vend::prices[queue])
+    if (account.getBalance() + funds < Vend::prices[queue])
     {
       Log::print("Money not stacked. Returning to acceptance mode");
       //MDB::money_hold = false;
@@ -325,7 +325,7 @@ namespace RFID
     }
     
     // Check for appropriate funds
-    if (account.getBalance() + funds + escrow <= Vend::prices[soda])
+    if (account.getBalance() + funds + escrow < Vend::prices[soda])
     {
       LCD::insufficientFunds(account.getBalance());
       return;
