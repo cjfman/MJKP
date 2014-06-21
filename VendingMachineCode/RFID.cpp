@@ -169,6 +169,7 @@ namespace RFID
   void deposit()
   {
     long funds = MDB::bill_funds + MDB::coin_funds;
+    static long last_funds = funds;
     long escrow = MDB::escrow;
     LCD::addFunds(funds + escrow);
     
@@ -178,6 +179,12 @@ namespace RFID
       MDB::stack();
       timeout(0);
       return;
+    }
+    
+    // Check for additional funds
+    if (funds != last_funds) {
+      last_funds = funds;
+      timeout(0);
     }
     
     // Check for timeout or cancel

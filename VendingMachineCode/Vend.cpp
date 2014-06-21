@@ -59,6 +59,7 @@ namespace Vend
     max_price = 0;
     uint8_t queue = 10;
     enabled = true;
+    queue = 10;
     
     // Setup Free switch
     pinMode(A5, INPUT);
@@ -363,7 +364,7 @@ namespace Vend
     LCD::run();
     
     // Check for valid value
-    if (queue >= 10)
+    if (soda >= 10)
     {
       return false;
     }
