@@ -569,7 +569,7 @@ void Accounts::clearAccount()
 {
   strcpy(path, "");
   strcpy(account_name, "");
-  account_ID = 0;
+  account_ID = -1;
   purchase_count = 0;
   account_balance = 0;
   cache_entry = "NULL";

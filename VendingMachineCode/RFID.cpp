@@ -32,6 +32,7 @@ namespace RFID
     received = 0;
     rfid_data = 0;
     queue = 10;
+    state = IDLE;
   }
   
   void run()
@@ -71,7 +72,6 @@ namespace RFID
     {
       Vend::disable();
       LCD::largeBill();
-      return;
     }
     else
     {
@@ -83,12 +83,13 @@ namespace RFID
     {
       return;
     }
+    MDB::all();
     
     account = Accounts(temp_id);
     if (!account.exists())
     {
       Log::print("Account not found: " + String (temp_id));
-      if (Accounts::createAccount(temp_id))
+      if (!Accounts::createAccount(temp_id))
       {
         Log::print("Failed to create account");
         Vend::enable();
@@ -107,10 +108,9 @@ namespace RFID
   void close()
   {
     Log::print("Closing account: " + account.getName() + ", with balance: " + String(account.getBalance()));
-    LCD::balanceUpdated(account.getBalance());
     account.close();
     Vend::enable();
-    LCD::idle();
+    LCD::balanceUpdated(account.getBalance());
     timeout(0);
     received = 0;
     MDB::money_hold = false;
@@ -126,12 +126,13 @@ namespace RFID
     if (MDB::escrow || MDB::coin_funds)
     {
       Log::print("Money inserted. Switching to deposit mode");
+      MDB::money_hold = true;
       state = DEPOSIT;
       return;
     }
     
     // Check for timeout or cancel
-    if(timeout(30000) || (received >= 32))
+    if(timeout(20000) || (received >= 32))
     {
       Log::print("Account timeout");
       state = CLOSE;
@@ -159,6 +160,9 @@ namespace RFID
     if(timeout(30000) || (received >= 32))
     {
       Log::print("Account deposit timeout / Account Closed by User");
+      account.credit(funds);
+      MDB::bill_funds = 0;
+      MDB::coin_funds = 0;
       state = CLOSE;
       return;
     }
@@ -185,16 +189,17 @@ namespace RFID
       {
         Log::print("Bill Stack Error");
         MDB::stack();
-        MDB::money_hold = false;
+        //MDB::money_hold = false;
         state = DEPOSIT;
       }
     }
+    timeout(0);
     
     // If the escrow has been stacked, the value of funds will be enough to make the purchase
     if (funds < Vend::prices[queue])
     {
       Log::print("Money not stacked. Returning to acceptance mode");
-      MDB::money_hold = false;
+      //MDB::money_hold = false;
       state = DEPOSIT;
       return;
     }
@@ -326,7 +331,7 @@ namespace RFID
       return;
     }
     
-    MDB::money_hold = true;
+    //MDB::money_hold = true;
     
     if (escrow)
     {

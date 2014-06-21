@@ -602,7 +602,7 @@ namespace MDB
       //*
       if(buffer[i] == 0x06) //Acceptor Unplugged
       {
-        Log::print("Acceptor Unplugged");
+        //Log::print("Acceptor Unplugged");
         changer_enable = 0;
         result |= 1;
         changer_errors++;
@@ -610,7 +610,7 @@ namespace MDB
       else if(buffer[i] == 0x07) //Tube Jam
       {
         // Can accept coins but can't dispense
-        Log::print("Tube Jam");
+        //Log::print("Tube Jam");
         exact_change = 1;
         changer_jam = 1;
         result |= 1;
@@ -619,7 +619,7 @@ namespace MDB
       else if(buffer[i] == 0x0C) //Coin Jam
       {
         // Can still dispense, but can't accept coins
-        Log::print("Coin Jam");
+        //Log::print("Coin Jam");
         changer_enable = 0;
 //        exact_change = 1;
 //        changer_jam = 1;
@@ -797,6 +797,7 @@ namespace MDB
         //return_bill |= 0x02;
         write_buffer[0] = 0x00; // Return
         command(0x35, 1);       // Bill command
+        escrow = 0;
         reader_state = POLL;
       }
       else

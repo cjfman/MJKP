@@ -68,7 +68,7 @@ namespace Vend
     }
     
     // Loop through all ten sodas and run setup
-    for (i = 0; i < 10; i++)
+    for (i = 0; i < 9; i++)
     {
       Accounts soda = Accounts(i);
       if (soda.getName() == "") {
@@ -92,6 +92,7 @@ namespace Vend
       Log::print("...motor: " + String(i));
       resetMotor(i);
     }
+    soda_enable[9] = false;
   }
   
   /************************************************************************************
@@ -128,7 +129,10 @@ namespace Vend
   
   void enable()
   {
+    if (enabled) return;
     enabled = true;
+    LCD::idle();
+    MDB::all();
   }
   
   boolean disable()
@@ -137,7 +141,6 @@ namespace Vend
     {
       return false;
     }
-    MDB::all();
     enabled = false;
     state = IDLE;
     return true;
@@ -156,9 +159,16 @@ namespace Vend
     unsigned long funds = MDB::bill_funds + MDB::coin_funds;
     boolean escrow = MDB::escrow;
     
-    if (funds || escrow)
+    if (MDB::escrow >= 500)
+    {
+      Vend::disable();
+      LCD::largeBill();
+      return;
+    }
+    else if (funds || escrow)
     {
       state = MONEY;
+      timeout(0);
       return;
     }
     
@@ -258,7 +268,7 @@ namespace Vend
       return;
     }
     
-    Log::print("Return Coins");
+    Log::print("Return Change");
     if (!vend(soda)) {
       MDB::giveChange(prices[soda]);        // Refund Money
     }
@@ -266,6 +276,7 @@ namespace Vend
       MDB::giveChange(funds - prices[soda]); // Calculate Change
     }
     MDB::money_hold = false;
+    MDB::all();
     state = IDLE;
     LCD::idle();
   }
@@ -283,18 +294,17 @@ namespace Vend
     // should be 0;
     if (escrow)
     {
-      if (!timeout(10000))
-      {
-        return;
-      }
-      else
+      if (timeout(10000))
       {
         MDB::money_hold = false;
         Log::print("Bill Stack Error");
         MDB::stack();
         state = MONEY;
+        timeout(0);
       }
+      return;
     }
+    timeout(0);
     
     if (funds < prices[queue])
     {
@@ -304,14 +314,15 @@ namespace Vend
     }
     
     Log::print("Verified\nReturn Coins");
-    if (!vend(soda)) {
-      MDB::giveChange(prices[soda]);        // Refund Money
+    if (!vend(queue)) {
+      MDB::giveChange(prices[queue]);        // Refund Money
     }
     else {
-      MDB::giveChange(funds - prices[soda]); // Calculate Change
+      MDB::giveChange(funds - prices[queue]); // Calculate Change
     }
     MDB::money_hold = false;
     queue = 10;
+    MDB::all();
     state = IDLE;
     LCD::idle();
   }
@@ -357,26 +368,43 @@ namespace Vend
     }
     
     digitalWrite(m, HIGH); // Start the motor
+    delay(200);            // Give motor chance to start
     latch(l);              // Latch to get the mode of the motor
     
-    // Keep motor on at least until it starts turning
+    
+    /*
+    if(!digitalRead(r))
+    {
+      vendFailue(soda);
+      digitalWrite(m, LOW);
+      Serial.println(__LINE__);
+      return false;
+    }
+    //*/
+    //*
+    timeout(0);
     while (!digitalRead(r))
     {
       if (timeout(4000))
       {
         vendFailue(soda);
         digitalWrite(m, LOW);
+        timeout(0);
+        Serial.println(__LINE__);
         return false;
       }
       
-      // Latch and try again
-      relatch();
+      
+      delay(200);   // Debounce
+      relatch();    // Latch and try again
     }
     timeout(0);
+    //*/
     
     // Turn motor off when it is back to default position
     int done = 0;
     int temp;
+    delay(200);   // Debounce
     while (!done || timeout(5000))
     {
       relatch();

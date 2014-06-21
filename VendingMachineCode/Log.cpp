@@ -7,6 +7,12 @@
 #include <stdlib.h>
 #include "Log.h"
 
+#ifdef CASH_ONLY
+#define DISABLE_LOG
+#else
+#define DISABLE_LOG
+#endif  // CASH_ONLY
+
 namespace Log
 {
   char *logdata;

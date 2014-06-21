@@ -9,7 +9,7 @@
 #include <inttypes.h>
 
 
-#define CASH_ONLY
+//#define CASH_ONLY
 
 class Accounts
 {
