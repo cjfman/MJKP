@@ -1,10 +1,35 @@
 //Vending Machine Hardware Controller Library 
 //Developed by Charles Franklin for RFID Vending Machine
 //Assumes Serial have been initialized
-//
-//(c) Charles Franklin 2012
 
-//Vend Buttons are locaded on latch 0 and latch 1 inputs 0, 1
+//(c) 2014 Charles Franklin
+
+//Permission is hereby granted, free of charge, to any person obtaining a copy
+//of this software and associated documentation files (the "Software"), to deal
+//in the Software without restriction, including without limitation the rights
+//to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//copies of the Software, and to permit persons to whom the Software is
+//furnished to do so, subject to the following conditions:
+//
+//The above copyright notice and this permission notice shall be included in
+//all copies or substantial portions of the Software.
+//
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//THE SOFTWARE.
+
+// This Program uses a cooperative processesing kernal scheem
+// A process is called by calling the run function of the process
+// The process returns control when it is done
+// Processes should return quickly and not run endless loops, 
+// because the main loop will never regain control
+
+// Because there are 10 soda types, each signal is ten bits wide
+//Vend Buttons are locaded on all of latch 0 and latch 1 inputs 0, 1
 //Sold Out Switches are locaded on latch 1 inputs 2, 3, 4, 5, 6, 7 
 //   and latch 2 inputs 0, 1, 2, 3
 //Vend Complete Switches are on latch 2 inputs 4, 5, 6, 7
